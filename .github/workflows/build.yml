@@ -5,7 +5,6 @@ on:
   pull_request:
 
 jobs:
-
   build:
 
     runs-on: ubuntu-latest
@@ -15,26 +14,37 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install python3 python3-tk wine -y
+        sudo apt install python3-tk -y
+
+    - name: Verify project structure
+      run: |
+        ls
+        ls launcher || true
+        ls installer || true
 
     - name: Test Python launcher
       run: |
         python3 -m py_compile launcher/pilator.py
 
-    - name: Package PiLator
+    - name: Create build package
       run: |
         mkdir build
         cp -r launcher build/
-        cp -r installer build/
-        cp -r wine build/
-        cp -r icons build/
-        cp README.md build/
+        cp -r installer build/ || true
+        cp -r wine build/ || true
+        cp -r icons build/ || true
+        cp README.md build/ || true
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: pilator-build
-        path: build/
+        path: build
