@@ -1,0 +1,40 @@
+name: PiLator Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install python3 python3-tk wine -y
+
+    - name: Test Python launcher
+      run: |
+        python3 -m py_compile launcher/pilator.py
+
+    - name: Package PiLator
+      run: |
+        mkdir build
+        cp -r launcher build/
+        cp -r installer build/
+        cp -r wine build/
+        cp -r icons build/
+        cp README.md build/
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pilator-build
+        path: build/
