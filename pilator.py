@@ -1,104 +1,109 @@
-# PiLator v3 (Unified Clean Version)
-import os
-import tkinter as tk
+import os, subprocess, json, tkinter as tk
 from tkinter import filedialog, messagebox
-import subprocess
-import psutil
 
-APP_DIR = "apps"
-SIMULATION_MODE = True
+BASE = os.path.expanduser("~/.pilator")
+APPS = os.path.join(BASE, "apps")
+STORE = os.path.join(BASE, "store")
+WINE_PREFIX = os.path.join(BASE, "wineprefix")
 
-os.makedirs(APP_DIR, exist_ok=True)
+for d in [APPS, STORE, WINE_PREFIX]:
+    os.makedirs(d, exist_ok=True)
 
-# ---------- Core ----------
-def scan_apps():
+SIM_MODE = True
+
+# ---------- APP SYSTEM ----------
+
+def scan():
     app_list.delete(0, tk.END)
-    for f in os.listdir(APP_DIR):
+    for f in os.listdir(APPS):
         if f.endswith(".exe"):
-            tag = "[SIM]" if SIMULATION_MODE else "[READY]"
+            tag = "🧪" if SIM_MODE else "⚡"
             app_list.insert(tk.END, f"{tag} {f}")
 
+def add():
+    file = filedialog.askopenfilename(filetypes=[("EXE", "*.exe")])
+    if file:
+        subprocess.run(["cp", file, os.path.join(APPS, os.path.basename(file))])
+        scan()
 
-def add_app():
-    path = filedialog.askopenfilename(filetypes=[("EXE Files", "*.exe")])
-    if path:
-        name = os.path.basename(path)
-        dest = os.path.join(APP_DIR, name)
-        try:
-            subprocess.run(["cp", path, dest])
-        except:
-            pass
-        scan_apps()
-
-
-def run_app():
+def run():
     sel = app_list.get(tk.ACTIVE)
     if not sel:
-        messagebox.showwarning("Warning", "Select app")
         return
 
     exe = sel.split(" ", 1)[1]
-    exe_path = os.path.join(APP_DIR, exe)
+    path = os.path.join(APPS, exe)
 
-    if SIMULATION_MODE:
-        messagebox.showinfo("Simulation", f"Running (fake): {exe}")
+    if SIM_MODE:
+        messagebox.showinfo("Simulation", f"Running: {exe}")
         return
 
-    try:
-        subprocess.Popen(["wine", exe_path])
-    except Exception as e:
-        messagebox.showerror("Error", str(e))
+    env = os.environ.copy()
+    env["WINEPREFIX"] = WINE_PREFIX
 
+    subprocess.Popen(["wine", path], env=env)
 
-def toggle_mode():
-    global SIMULATION_MODE
-    SIMULATION_MODE = not SIMULATION_MODE
-    mode_label.config(text=f"Mode: {'SIMULATION' if SIMULATION_MODE else 'REAL'}")
-    scan_apps()
+# ---------- STORE SYSTEM ----------
 
+def load_store():
+    store_list.delete(0, tk.END)
+    for f in os.listdir(STORE):
+        if f.endswith(".json"):
+            with open(os.path.join(STORE, f)) as j:
+                data = json.load(j)
+                store_list.insert(tk.END, data["name"])
 
-def update_stats():
-    cpu = psutil.cpu_percent()
-    ram = psutil.virtual_memory().percent
-    info.config(text=f"CPU: {cpu}% | RAM: {ram}%")
+def install():
+    sel = store_list.get(tk.ACTIVE)
+    if not sel:
+        return
+
+    for f in os.listdir(STORE):
+        path = os.path.join(STORE, f)
+        data = json.load(open(path))
+
+        if data["name"] == sel:
+            if "url" not in data:
+                messagebox.showinfo("Info", "No download link")
+                return
+
+            dest = os.path.join(APPS, data["file"])
+            subprocess.run(["wget", data["url"], "-O", dest])
+            messagebox.showinfo("Done", f"{data['name']} installed")
+            scan()
+
+# ---------- SYSTEM ----------
+
+def toggle():
+    global SIM_MODE
+    SIM_MODE = not SIM_MODE
+    scan()
 
 # ---------- UI ----------
+
 root = tk.Tk()
-root.title("PiLator")
-root.geometry("520x420")
-root.configure(bg="#1e1e1e")
+root.title("PiLator Pro")
+root.geometry("600x500")
 
-header = tk.Label(root, text="PiLator", font=("Arial", 18), fg="white", bg="#1e1e1e")
-header.pack()
+tk.Label(root, text="🚀 PiLator Pro", font=("Arial", 16)).pack()
 
-mode_label = tk.Label(root, text="Mode: SIMULATION", fg="cyan", bg="#1e1e1e")
-mode_label.pack()
+app_list = tk.Listbox(root, width=60, height=10)
+app_list.pack()
 
-frame = tk.Frame(root, bg="#1e1e1e")
-frame.pack(pady=10)
+btn = tk.Frame(root)
+btn.pack()
 
-app_list = tk.Listbox(frame, width=45, height=12, bg="#2e2e2e", fg="white")
-app_list.pack(side=tk.LEFT)
+tk.Button(btn, text="Add EXE", command=add).grid(row=0, column=0)
+tk.Button(btn, text="Run", command=run).grid(row=0, column=1)
+tk.Button(btn, text="Toggle Mode", command=toggle).grid(row=0, column=2)
 
-scroll = tk.Scrollbar(frame)
-scroll.pack(side=tk.RIGHT, fill=tk.Y)
-app_list.config(yscrollcommand=scroll.set)
-scroll.config(command=app_list.yview)
+tk.Label(root, text="🛒 App Store").pack()
 
-btns = tk.Frame(root, bg="#1e1e1e")
-btns.pack(pady=10)
+store_list = tk.Listbox(root, width=60, height=6)
+store_list.pack()
 
-style = {"bg": "#333", "fg": "white", "width": 12}
+tk.Button(root, text="Install", command=install).pack()
 
-tk.Button(btns, text="Scan", command=scan_apps, **style).grid(row=0, column=0, padx=5)
-tk.Button(btns, text="Add EXE", command=add_app, **style).grid(row=0, column=1, padx=5)
-tk.Button(btns, text="Run", command=run_app, **style).grid(row=0, column=2, padx=5)
-tk.Button(btns, text="Toggle Mode", command=toggle_mode, **style).grid(row=1, column=1, pady=5)
-
-info = tk.Label(root, text="CPU: -- | RAM: --", fg="lightgreen", bg="#1e1e1e")
-info.pack(pady=10)
-
-tk.Button(root, text="Refresh", command=update_stats, bg="#444", fg="white").pack()
-
-scan_apps()
+scan()
+load_store()
 root.mainloop()
