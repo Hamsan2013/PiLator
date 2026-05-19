@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Web EXE Runner</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <h1>Web EXE Runner</h1>
+          <p class="sub">
+            Runs allowlisted Windows <code>.exe</code> programs on the <strong>server</strong>. Max runtime:
+            <strong>{{ max_runtime_seconds }}</strong>s.
+          </p>
+        </div>
+      </header>
+
+      <section class="card">
+        <h2>Allowed apps</h2>
+        {% if allowed|length == 0 %}
+          <p class="muted">No apps configured. Edit <code>app/allowed_apps.json</code>.</p>
+        {% else %}
+          <div class="grid">
+            {% for item in allowed %}
+              <button class="btn" data-app-id="{{ item.id|e }}">
+                <span class="btn-title">{{ item.label|e }}</span>
+                <span class="btn-sub">{{ item.id|e }}</span>
+              </button>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <h2>Output</h2>
+          <div class="status" id="status">Idle</div>
+        </div>
+        <pre class="log" id="log"></pre>
+      </section>
+
+      <footer class="footer">
+        <p class="muted">
+          Prototype. Do not expose publicly. Only run trusted executables.
+        </p>
+      </footer>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
